@@ -1,97 +1,113 @@
-package com.backend.kanban.Service; //Ashok has made changes
+package com.backend.kanban.Service;
 
 import com.backend.kanban.Exception.EmployeeAlreadyExistsException;
 import com.backend.kanban.Exception.EmployeeNotFoundException;
 import com.backend.kanban.Exception.TaskAlreadyExistsException;
-import com.backend.kanban.Proxy.EmployeeProxy;
-import com.backend.kanban.Repository.KanbanRepository;
+import com.backend.kanban.Exception.TaskNotFoundException;
+import com.backend.kanban.Repository.EmployeeRepository;
+import com.backend.kanban.Repository.TaskRepository;
 import com.backend.kanban.Domain.Employee;
 import com.backend.kanban.Domain.Task;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class KanbanServiceImpl implements KanbanService{
-    private KanbanRepository kanbanRepository;
-    private EmployeeProxy employeeProxy;
+public class KanbanServiceImpl implements KanbanService {
+    private final EmployeeRepository employeeRepository;
+    private final TaskRepository taskRepository;
 
     @Autowired
-    public KanbanServiceImpl(KanbanRepository kanbanRepo,EmployeeProxy employeeProxy){
-        this.kanbanRepository=kanbanRepository;
-        this.employeeProxy = employeeProxy;
+    public KanbanServiceImpl(EmployeeRepository employeeRepository, TaskRepository taskRepository) {
+        this.employeeRepository = employeeRepository;
+        this.taskRepository = taskRepository;
     }
 
-
-    //Register new Employee
+    // Register new Employee
     @Override
-    public Employee registerEmployee(Employee employee) throws EmployeeAlreadyExistsException{
-        if(kanbanRepository.findById(employee.getEmployeeEmail()).isPresent()){
+    public Employee registerEmployee(Employee employee) throws EmployeeAlreadyExistsException {
+        if (employeeRepository.findById(employee.getEmployeeEmail()).isPresent()) {
             throw new EmployeeAlreadyExistsException();
         }
-        Employee saveEmployee = kanbanRepository.save(employee);
-        if(!(saveEmployee.getEmployeeEmail().isEmpty())){
-            ResponseEntity r = employeeProxy.saveEmployee(employee);
-            System.out.println(r.getBody());
-        }
-        return saveEmployee;
+        return employeeRepository.save(employee);
     }
+
     // Get all employees
     @Override
     public List<Employee> getAllEmployees() {
-        return kanbanRepository.getAllEmployees();
+        return employeeRepository.findAll();
+    }
+
+    // Get an employee by email
+    @Override
+    public Employee getEmployeeByEmail(String email) throws EmployeeNotFoundException {
+        return employeeRepository.findById(email)
+                .orElseThrow(EmployeeNotFoundException::new);
+    }
+
+    // Assign a task to an employee
+    @Override
+    public Employee assignTaskToEmployee(String employeeEmail, int taskId) throws EmployeeNotFoundException, TaskNotFoundException {
+        Employee employee = employeeRepository.findById(employeeEmail)
+                .orElseThrow(EmployeeNotFoundException::new);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(TaskNotFoundException::new);
+
+        List<Task> taskList = employee.getTaskList();
+        if (!taskList.contains(task)) {
+            taskList.add(task);
+            employee.setTaskList(taskList);
+            return employeeRepository.save(employee);
+        }
+        return employee; // Task is already assigned, return the employee as-is.
     }
 
     // Get all tasks
     @Override
     public List<Task> getAllTasks() {
-        return kanbanRepository.getAllTasks();
+        return taskRepository.findAll();
     }
 
-    // Create a new task
+    // Get a task by ID (fixed exception)
     @Override
-    public Task createTask(Task task,List<Employee> listOfEmployee ) throws TaskAlreadyExistsException, EmployeeNotFoundException {
-
-        for(int i=0;i<listOfEmployee.size();i++)
-        {
-            if(kanbanRepository.findById(task.getTaskId()))
-            {
-
-            }
-        }
-        if(kanbanRepository.findById(task.getTaskTitle()).isPresent()){
-        throw new TaskAlreadyExistsException();
-       }
-       Task newTask = kanbanRepository.save(task);
-
+    public Task getTaskById(int taskId) throws TaskNotFoundException {
+        return taskRepository.findById(taskId)
+                .orElseThrow(TaskNotFoundException::new);
     }
 
-    // Update task progress and status
+    // Create a new task with assigned employees
     @Override
-    public Task updateTask(int taskId, int taskProgress, String taskStatus) {
-        Optional<Task> taskOpt = kanbanRepository.findById(taskId);
-        if (taskOpt.isPresent()) {
-            Task task = taskOpt.get();
-            task.setTaskProgress(taskProgress);
-            task.setTaskStatus(taskStatus);
-            return kanbanRepository.save(task);
+    public Task createTask(Task task, List<Employee> assignedEmployees) throws TaskAlreadyExistsException {
+        if (taskRepository.findById(task.getTaskId()).isPresent()) {
+            throw new TaskAlreadyExistsException();
         }
-        return null;
+
+        // Assign employees to the task
+        task.setAssignedEmployees(assignedEmployees);
+        return taskRepository.save(task);
     }
 
-    // Delete a task by task name
+    // Update task progress and status (fixed exception)
     @Override
-    public Task deleteTask(int taskId) {
-        List<Task> tasks = kanbanRepository.findAll();
-        for (Task task : tasks) {
-            if (task.getTaskTitle().equals(taskName)) {
-                kanbanRepository.delete(task);
-                return true;
-            }
+    public Task updateTask(int taskId, int taskProgress, String taskStatus) throws TaskNotFoundException {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(TaskNotFoundException::new);
+
+        task.setTaskProgress(taskProgress);
+        task.setTaskStatus(taskStatus);
+        return taskRepository.save(task);
+    }
+
+    // Delete a task by task ID
+    @Override
+    public boolean deleteTask(int taskId) throws TaskNotFoundException {
+        if (!taskRepository.existsById(taskId)) {
+            throw new TaskNotFoundException();
         }
-        return false;
+        taskRepository.deleteById(taskId);
+        return true;
     }
 }

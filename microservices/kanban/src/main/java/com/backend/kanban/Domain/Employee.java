@@ -9,17 +9,17 @@ import java.util.List;
 public class Employee {
     @Id
     private String employeeEmail;
+    private String employeePassword;
     private String employeeName;
     private String employeeRole;
-    private List<Task> taskList;
 
 
 
-    public Employee(String employeeName, String employeeRole,String employeeEmail,List<Task> taskList) {
+    public Employee(String employeeName,String employeePassword, String employeeRole,String employeeEmail) {
         this.employeeName = employeeName;
+        this.employeePassword=employeePassword;
         this.employeeRole = employeeRole;
         this.employeeEmail = employeeEmail;
-        this.taskList = taskList;
     }
 
     public Employee(){
@@ -50,21 +50,21 @@ public class Employee {
         this.employeeEmail = employeeEmail;
     }
 
-    public List<Task> getTaskList() {
-        return taskList;
+    public String getEmployeePassword() {
+        return employeePassword;
     }
 
-    public void setTaskList(List<Task> taskList) {
-        this.taskList = taskList;
+    public void setEmployeePassword(String employeePassword) {
+        this.employeePassword = employeePassword;
     }
 
     @Override
     public String toString() {
         return "Employee{" +
                 "employeeEmail='" + employeeEmail + '\'' +
+                ", employeePassword='" + employeePassword + '\'' +
                 ", employeeName='" + employeeName + '\'' +
                 ", employeeRole='" + employeeRole + '\'' +
-                ", taskList=" + taskList +
                 '}';
     }
 }
